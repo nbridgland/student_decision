@@ -83,35 +83,27 @@ def KPI1(population,segment):
         
     KPI1=[[] for i in range(0,len(offers))]
     
-#    for i in range(0,len(offers)):
-#        if len(offer_groups[i])==0 or spent_cont[i]==0:
-#            KPI1[i].append("NA")
-#        else:
-#            KPI1[i].append(((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i]))/(spent_cont[i]/num_control))
-#        KPI1[i].append((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i])-spent_cont[i]/num_control)
 
     for i in range(0,len(offers)):
-        try:
-            KPI1[i].append(((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i]))/(spent_cont[i]/num_control))
-        except ZeroDivisionError:
-            KPI1[i].append('NaN')
-            print("group"," offer",i)
-            print(((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i]),len(offer_groups[i])),(spent_cont[i],num_control))
-        try:
-            KPI1[i].append((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i])-spent_cont[i]/num_control)
-        except ZeroDivisionError:
-            KPI1[i].append('NaN')
-    
+            try:
+                KPI1[i].append(((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i]))/(spent_cont[i]/num_control))
+            except ZeroDivisionError:
+                KPI1[i].append('NaN')
+                print("group"," offer",i)
+                print(((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i]),len(offer_groups[i])),(spent_cont[i],num_control))
+            try:
+                KPI1[i].append((spent_targ[i]- population.portfolio.values()[i].reward * num_rew[i])/len(offer_groups[i])-spent_cont[i]/num_control)
+            except ZeroDivisionError:
+                KPI1[i].append('NaN')
+        
     return KPI1
-
-
 
 
 #Generate KPI3 for each non-informational offer, for the first 3 days of the validity period
 #KPI3: a fraction of completed offers after viewing them; only for target group 
 # returns list of pairs: [fraction, difference]
 def KPI3(population,segment):
-    transcript_file_name = 'data/transcript.json'
+    transcript_file_name = population.transcript_file_name
     
     transcript=[]
     
@@ -177,22 +169,19 @@ def KPI3(population,segment):
                         num_comp_targ[j] +=1
         
             
-    KPI3=[]
+    KPI3=[[] for i in range(0,len(offers))]
     
     frac = [0 for i in range(0, len(offers))]
     diff = [0 for i in range(0,len(offers))]
     
     for i in range(0,len(offers)):
-        if num_view_targ[i]==0:
-            frac[i]="NA"
-        else:
-            frac[i] = (num_comp_targ[i]/num_view_targ[i])
-            for j in range(0,len(offers)):
-                if population.portfolio.values()[i].offer_type.weights[j] ==1 and population.portfolio.values()[i].offer_type.names[j]=='informational':
-                    frac[i] = 'N/A'
-        diff[i]=num_comp_targ[i]-num_view_targ[i]                    
-    for i in range(0,len(offers)):
-        KPI3.append([frac[i],diff[i]])
+            try:
+                KPI3[i].append(num_comp_targ[i]/num_view_targ[i])
+            except ZeroDivisionError:
+                KPI3[i].append('NaN')
+            if population.portfolio.values()[i].offer_type.weights[j] ==1 and population.portfolio.values()[i].offer_type.names[j]=='informational':
+                    frac[i] = 'NA'
+            KPI3[i].append(num_comp_targ[i]-num_view_targ[i])
     
     return KPI3
 
@@ -202,7 +191,7 @@ def KPI3(population,segment):
 #KPI4 = number of trx for people who received offer over number of trx for control group
 #return list of pairs [fraction,difference]
 def KPI4(population,segment):
-    transcript_file_name = 'data/transcript.json'
+    transcript_file_name = population.transcript_file_name
     
     transcript=[]
     
@@ -269,13 +258,17 @@ def KPI4(population,segment):
     
     KPI4=[[] for i in range(0,len(offers))]
    
-    
     for i in range(0,len(offers)):
-        if len(offer_groups[i])==0 or num_trx_cont[i]==0:
-            KPI4[i].append("NA")
-        else:
+        
+        try:
             KPI4[i].append((num_trx_targ[i]/len(offer_groups[i]))/(num_trx_cont[i]/num_control))
-        KPI[i].append(num_trx_targ[i]/len(offer_groups[i])-(num_trx_cont[i]/num_control))
+        except ZeroDivisionError:
+            KPI4[i].append('NaN')
+        try:
+            KPI4[i].append(num_trx_targ[i]/len(offer_groups[i])-num_trx_cont[i]/num_control)
+        except ZeroDivisionError:
+            KPI4[i].append('NaN')
+    
     return KPI4
 
 
@@ -285,7 +278,7 @@ def KPI4(population,segment):
 def KPI5(population,segment):
 
     
-    transcript_file_name = 'data/transcript.json'
+    transcript_file_name = population.transcript_file_name
     
     transcript=[]
     
@@ -374,10 +367,11 @@ def KPI5(population,segment):
     KPI5=[[] for i in range(0,len(offers))]
     
     for i in range(0,len(offers)):
-        if DollarTrxB[i]==0:
-            KPI5[i].append("NA")
-        else:
+        
+        try:
             KPI5[i].append(DollarTrxA[i]/DollarTrxB[i])
+        except ZeroDivisionError:
+            KPI5[i].append('NaN')
         KPI5[i].append(DollarTrxA[i]-DollarTrxB[i])
     
 
@@ -390,7 +384,7 @@ def KPI5(population,segment):
 def KPI6(population,segment):
 
     
-    transcript_file_name = 'data/transcript.json'
+    transcript_file_name = population.transcript_file_name
     
     transcript=[]
     
@@ -470,12 +464,15 @@ def KPI6(population,segment):
                 TrxHourA[j]=TrxHourA[j]*i/(i+1)+TrxBA[i][3]/(max_time-TrxBA[i][1])
                 
     KPI6=[[] for i in range(0,len(offers))]
+    
     for i in range(0,len(offers)):
-        if TrxHourA[i]==0:
-            KPI6[i].append("NA")
-        else:
-            KPI6[i]=TrxHourB[i]/TrxHourA[i]
+        try:
+            KPI6[i].append(TrxHourB[i]/TrxHourA[i])
+        except ZeroDivisionError:
+            KPI6[i].append('NaN')
         KPI6[i].append(TrxHourB[i]-TrxHourA[i])
+        
+        
     
     return KPI6
 
