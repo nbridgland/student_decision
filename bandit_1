@@ -1,0 +1,117 @@
+from numpy import *
+from numpy.linalg import inv
+import numpy as np
+#from scipy.stats import beta
+import matplotlib.pyplot as plt
+import json
+from datetime import datetime, timedelta
+
+from population import Population
+from externalities import World, Offer, Transaction, Event, Categorical
+
+class ContextualBandit(object):
+	def __init__(self, population=None, time_stamp=0, num_arms=2, context_dim=2, prior=(1.0,1.0), delta=0.05):
+		self.num_arms = num_arms
+		self.context_dim = context_dim
+		self.offer_list = []
+		self.time_stamp = time_stamp
+		if (population != None):
+			self.offer_list = population.portfolio#.keys()
+			self.num_arms = len(self.offer_list)
+		
+		loc_dm = [np.identity(context_dim) for i in range(self.num_arms)] # list of "design matrix", actually A_a, but still call them design matrix
+		self.design_matrix =[x[:] for x in loc_dm]  
+		loc_rv = [np.zeros(shape=(context_dim,)) for i in range(self.num_arms)] # list of resp vectors, stored as column vectors, b_a
+		self.respond_vector = [x[:] for x in loc_rv]
+		
+		self.prior = prior #only used for Bayesian
+
+		self.alpha = 1 + np.sqrt(np.log(2/delta)/2)
+	
+	def context(self,current_user, trial_id, time_stamp):#maybe with current population too
+		#return x(a,t)
+		context = np.ones(shape=(self.context_dim,)) #context-free
+		return context
+		
+	def add_result(self, trial_id, current_user, feedback, time_stamp): #add only one result to current bandit object
+		#context=x(a,t) as column vector, feedback=r(t) as scalar
+		loc_context = self.context(current_user, trial_id, time_stamp)
+		self.design_matrix[trial_id] += loc_context*loc_context.reshape(self.context_dim,)
+		self.respond_vector[trial_id] += feedback*loc_context
+		self.time_stamp = max(time_stamp,self.time_stamp)
+		
+	def KPI(self,population_stats_dict,person_id):
+		return 0
+		
+	def add_results_from_group(self, population, group=None):
+		# add results from a specified group (list of person_id, or None) with given population
+		if (group==None):
+			group = population.people
+		#else:
+			#work with specific group
+		transcript_file_name=population.transcript_file_name
+		stats = dict([(person_id, {'group': 'control',
+			                     'offer id': -1,
+                           'viewed': 0,
+                           'trx': 0,
+                           'spend': 0.00}) for person_id in group])
+    
+		#print(type(stats),len(stats),stats)
+		time_stamp = -1
+		with open(transcript_file_name, 'r') as transcript_file:
+			for line_number, line in enumerate(transcript_file):
+				text = line.strip()
+				if text != '':
+					record = json.loads(text)
+		    
+				current_person = record['person']
+				if current_person in group:
+					if record['event'] == 'offer received':
+						stats[current_person]['group'] = 'target'
+						current_offer_id = record['value']['offer id']
+						if current_offer_id not in self.offer_list:
+							self.offer_list.append(current_offer_id)
+						stats[current_person]['offer id'] = self.offer_list.keys().index( record['value']['offer id'] )
+			    
+					if record['event'] == 'offer viewed':
+						stats[current_person]['viewed'] += 1
+    
+					if record['event'] == 'transaction':
+						stats[current_person]['trx'] += 1
+						stats[current_person]['spend'] += record['value']['amount']
+        
+				#print(time_stamp, record['time'])
+				time_stamp = max(time_stamp, record['time'])
+    
+		#counter = 0
+		#cnt = [0 for i in range(self.num_arms)]
+		#cnttrx = [0 for i in range(self.num_arms)]
+		for person_id in group:
+			val = stats[person_id]
+			if (val['group'] == 'target'):
+				feedback = int(val['trx']>0) # can change this feedback function
+				#feedback = self.KPI(stats,person_id)
+				
+				#counter +=1
+				#cnt[val['offer id']] +=1
+				#cnttrx[val['offer id']] += feedback
+				#print(counter,val['offer id'],person_id,feedback,time_stamp)
+				
+				self.add_result(val['offer id'],person_id,feedback,time_stamp)
+				#print(self.design_matrix, self.respond_vector)
+		#print(cnt)
+		#print(cnttrx) 
+	
+	def send_recommendation(self, current_user=None, method='disjointUCB'):
+		#methods can be Bayesian, disjointUCB, hybirdUCB
+		sampled_p = []
+		for trial_id in range(self.num_arms):
+			context = self.context(current_user, trial_id, self.time_stamp).reshape(self.context_dim,1)
+			#print(context)
+			theta = np.matmul(inv(self.design_matrix[trial_id]),self.respond_vector[trial_id])
+			p = np.matmul(theta.transpose(),context) + self.alpha*np.sqrt(np.matmul(np.matmul(context.reshape(1,self.context_dim),inv(self.design_matrix[trial_id])),context))
+			sampled_p += [p]
+		print(sampled_p)
+		recommended_arm = sampled_p.index( max(sampled_p) )
+		return self.offer_list.values()[recommended_arm]
+	
